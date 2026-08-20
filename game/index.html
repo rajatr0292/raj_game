@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RAJAT - Sci-Fi Arcade Web Shooter | Destroy The Tasks</title>
+  <meta name="description" content="High-octane neon roguelite shooter game starring Rajat. Destroy all incoming Tasks with synthesized audio, bullet-hell bosses, and modular upgrades.">
+  
+  <!-- Google Fonts: Orbitron & Rajdhani -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- WebGL / 2D Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Custom Crosshair -->
+    <div id="crosshair"></div>
+
+    <!-- HUD Overlay -->
+    <header id="hud" class="hud-layer hidden">
+      <!-- Left Stats: Health, Shield, Overdrive -->
+      <div class="hud-panel hud-left">
+        <div class="pilot-tag">⚡ PILOT RAJAT</div>
+        <div class="stat-group">
+          <div class="stat-label">
+            <span>🛡️ SHIELD</span>
+            <span id="hud-shield-text">100 / 100</span>
+          </div>
+          <div class="bar-track shield-track">
+            <div id="hud-shield" class="bar-fill shield-fill"></div>
+          </div>
+        </div>
+
+        <div class="stat-group">
+          <div class="stat-label">
+            <span>❤️ HULL INTEGRITY</span>
+            <span id="hud-health-text">100 / 100</span>
+          </div>
+          <div class="bar-track health-track">
+            <div id="hud-health" class="bar-fill health-fill"></div>
+          </div>
+        </div>
+
+        <div class="stat-group">
+          <div class="stat-label">
+            <span>⚡ RAJAT NOVA OVERDRIVE [F]</span>
+          </div>
+          <div class="bar-track overdrive-track">
+            <div id="hud-overdrive" class="bar-fill overdrive-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Wave & Combo -->
+      <div class="hud-panel hud-center">
+        <div id="hud-wave" class="hud-wave-badge">TASK WAVE 1</div>
+        <div id="hud-combo" class="hud-combo-badge">2.0x COMBO</div>
+      </div>
+
+      <!-- Right Stats: Score & Dash -->
+      <div class="hud-panel hud-right">
+        <div class="score-container">
+          <span class="score-title">RAJAT SCORE</span>
+          <span id="hud-score" class="score-number">0</span>
+        </div>
+        <div id="hud-dash" class="dash-badge ready">DASH [SHIFT] : READY</div>
+        <button id="btn-pause-hud" class="hud-mini-btn" title="Pause Game (ESC)">⏸️</button>
+      </div>
+
+      <!-- Bottom Weapon Selector Bar -->
+      <nav id="weapon-bar" class="weapon-bar">
+        <button class="weapon-slot active" data-index="0" title="Pulse Blaster (1)">
+          <span class="slot-num">1</span>
+          <span class="slot-icon">⚡</span>
+          <span class="slot-name">PULSE</span>
+        </button>
+        <button class="weapon-slot" data-index="1" title="Scatter Shotgun (2)">
+          <span class="slot-num">2</span>
+          <span class="slot-icon">💥</span>
+          <span class="slot-name">SHOTGUN</span>
+        </button>
+        <button class="weapon-slot" data-index="2" title="Photon Railgun (3)">
+          <span class="slot-num">3</span>
+          <span class="slot-icon">🔮</span>
+          <span class="slot-name">RAILGUN</span>
+        </button>
+        <button class="weapon-slot" data-index="3" title="Swarm Missiles (4)">
+          <span class="slot-num">4</span>
+          <span class="slot-icon">🚀</span>
+          <span class="slot-name">MISSILES</span>
+        </button>
+        <button id="btn-overdrive" class="weapon-slot overdrive-btn" title="Trigger Rajat Nova Overdrive (F)">
+          <span class="slot-num">F</span>
+          <span class="slot-icon">🌟</span>
+          <span class="slot-name">NOVA</span>
+        </button>
+      </nav>
+    </header>
+
+    <!-- Mobile Virtual Joystick & Touch Controls -->
+    <div id="mobile-controls" class="mobile-controls-layer hidden">
+      <div id="joystick-zone" class="joystick-zone">
+        <div id="joystick-base" class="joystick-base">
+          <div id="joystick-knob" class="joystick-knob"></div>
+        </div>
+      </div>
+      <div class="mobile-action-buttons">
+        <button id="mobile-dash-btn" class="mobile-action-btn">💨 DASH</button>
+        <button id="mobile-nova-btn" class="mobile-action-btn nova-btn">🌟 NOVA</button>
+        <button id="mobile-swap-btn" class="mobile-action-btn">🔄 WEAPON</button>
+      </div>
+    </div>
+
+    <!-- MAIN MENU MODAL -->
+    <main id="main-menu" class="modal-overlay">
+      <div class="glass-card menu-card">
+        <div class="logo-container">
+          <div class="neon-subtitle">ELIMINATE ALL INCOMING TASKS</div>
+          <h1 class="neon-title">RAJAT</h1>
+          <div class="neon-title-sub">NEON VANGUARD</div>
+        </div>
+
+        <div class="highscore-banner">
+          <span>🏆 RAJAT'S HIGH SCORE:</span>
+          <strong id="menu-highscore">0</strong>
+        </div>
+
+        <div class="menu-actions">
+          <button id="btn-play-campaign" class="cyber-btn primary-btn">
+            <span class="btn-glow"></span>
+            <span class="btn-text">⚔️ LAUNCH RAJAT CAMPAIGN</span>
+          </button>
+          <button id="btn-play-endless" class="cyber-btn secondary-btn">
+            <span class="btn-text">♾️ ENDLESS TASK SURVIVAL</span>
+          </button>
+          <button id="btn-play-bossrush" class="cyber-btn danger-btn">
+            <span class="btn-text">💀 TASK TITAN BOSS RUSH</span>
+          </button>
+          <div class="menu-btn-row">
+            <button id="btn-how-to-play" class="cyber-btn outline-btn">📖 HOW TO PLAY</button>
+            <button id="btn-audio-settings" class="cyber-btn outline-btn">🔊 AUDIO</button>
+          </div>
+        </div>
+
+        <div class="menu-footer">
+          <span>Desktop (WASD + Mouse) • Mobile Touch Joysticks Enabled</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- ROGUELITE LEVEL UP MODAL -->
+    <section id="levelup-modal" class="modal-overlay hidden">
+      <div class="glass-card levelup-card">
+        <div class="modal-header">
+          <div class="header-badge">RAJAT MATRIX UPGRADE DETECTED</div>
+          <h2 class="modal-title">SELECT BATTLE PERK</h2>
+          <p class="modal-desc">Upgrade Rajat's starfighter systems to eliminate tougher Tasks ahead</p>
+        </div>
+        <div id="perk-cards" class="perk-cards-grid">
+          <!-- Dynamically inserted cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- PAUSE MODAL -->
+    <section id="pause-modal" class="modal-overlay hidden">
+      <div class="glass-card pause-card">
+        <h2 class="modal-title">MISSION PAUSED</h2>
+        <div class="menu-actions">
+          <button id="btn-resume" class="cyber-btn primary-btn">▶️ RESUME MISSION</button>
+          <button id="btn-restart" class="cyber-btn secondary-btn">🔄 RESTART BATTLE</button>
+          <button id="btn-quit-menu" class="cyber-btn danger-btn">🚪 QUIT TO MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- GAME OVER MODAL -->
+    <section id="gameover-modal" class="modal-overlay hidden">
+      <div class="glass-card gameover-card">
+        <div class="skull-icon">💀</div>
+        <h2 class="modal-title gameover-title">CRITICAL FAILURE</h2>
+        <p class="gameover-desc">Rajat's vessel was overwhelmed by enemy Tasks</p>
+
+        <div class="stats-summary">
+          <div class="stat-row">
+            <span>FINAL SCORE:</span>
+            <strong id="game-over-score">0</strong>
+          </div>
+          <div class="stat-row">
+            <span>SURVIVED:</span>
+            <strong id="game-over-wave">TASK WAVE 1</strong>
+          </div>
+          <div class="stat-row">
+            <span>TASKS NEUTRALIZED:</span>
+            <strong id="game-over-kills">0</strong>
+          </div>
+          <div class="stat-row highlight">
+            <span>RAJAT'S BEST RECORD:</span>
+            <strong id="game-over-highscore">0</strong>
+          </div>
+        </div>
+
+        <div class="menu-actions">
+          <button id="btn-gameover-restart" class="cyber-btn primary-btn">🔄 RETRY MISSION</button>
+          <button id="btn-gameover-menu" class="cyber-btn outline-btn">🚪 MAIN MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VICTORY MODAL -->
+    <section id="victory-modal" class="modal-overlay hidden">
+      <div class="glass-card victory-card">
+        <div class="trophy-icon">🏆</div>
+        <h2 class="modal-title victory-title">ALL TASKS ELIMINATED!</h2>
+        <p class="victory-desc">Pilot Rajat successfully destroyed all Tasks and Titan Overseers!</p>
+
+        <div class="stats-summary">
+          <div class="stat-row">
+            <span>TOTAL SCORE:</span>
+            <strong id="victory-score">0</strong>
+          </div>
+          <div class="stat-row highlight">
+            <span>RAJAT'S RECORD:</span>
+            <strong id="victory-highscore">0</strong>
+          </div>
+        </div>
+
+        <div class="menu-actions">
+          <button id="btn-victory-endless" class="cyber-btn primary-btn">♾️ CONTINUE ENDLESS TASKS</button>
+          <button id="btn-victory-menu" class="cyber-btn outline-btn">🚪 MAIN MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW TO PLAY GUIDE MODAL -->
+    <section id="guide-modal" class="modal-overlay hidden">
+      <div class="glass-card guide-card">
+        <h2 class="modal-title">PILOT RAJAT INSTRUCTIONS</h2>
+        <div class="guide-grid">
+          <div class="guide-item">
+            <span class="guide-key">W A S D</span>
+            <span class="guide-label">Move Rajat's Starfighter</span>
+          </div>
+          <div class="guide-item">
+            <span class="guide-key">MOUSE</span>
+            <span class="guide-label">Aim & Crosshair</span>
+          </div>
+          <div class="guide-item">
+            <span class="guide-key">LEFT CLICK / SPACE</span>
+            <span class="guide-label">Fire Weapon at Tasks</span>
+          </div>
+          <div class="guide-item">
+            <span class="guide-key">SHIFT / RIGHT CLICK</span>
+            <span class="guide-label">Dash (Invulnerability)</span>
+          </div>
+          <div class="guide-item">
+            <span class="guide-key">1 • 2 • 3 • 4 / WHEEL</span>
+            <span class="guide-label">Switch Arsenal</span>
+          </div>
+          <div class="guide-item">
+            <span class="guide-key">F / Q</span>
+            <span class="guide-label">Rajat Nova Overdrive (Nuke Tasks)</span>
+          </div>
+        </div>
+        <button id="btn-close-guide" class="cyber-btn primary-btn">READY TO DESTROY TASKS!</button>
+      </div>
+    </section>
+
+    <!-- AUDIO SETTINGS MODAL -->
+    <section id="audio-modal" class="modal-overlay hidden">
+      <div class="glass-card settings-card">
+        <h2 class="modal-title">AUDIO CONTROLS</h2>
+        <div class="settings-group">
+          <label>MASTER SOUND EFFECTS (SFX)</label>
+          <input type="range" id="sfx-slider" min="0" max="1" step="0.05" value="0.7">
+        </div>
+        <div class="settings-group">
+          <label>SYNTHWAVE MUSIC</label>
+          <input type="range" id="music-slider" min="0" max="1" step="0.05" value="0.4">
+        </div>
+        <div class="settings-group toggle-row">
+          <span>MUTE ALL AUDIO</span>
+          <input type="checkbox" id="mute-checkbox">
+        </div>
+        <button id="btn-close-audio" class="cyber-btn primary-btn">SAVE & RETURN</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- App Bootstrap Script (ES Modules) -->
+  <script type="module">
+    import { GameEngine } from './src/game.js';
+    import { soundEngine } from './src/audio.js';
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('game-canvas');
+      const game = new GameEngine(canvas);
+      game.start();
+
+      // Update High Score Display
+      const updateMenuScore = () => {
+        const hs = localStorage.getItem('rajat_game_highscore') || localStorage.getItem('neon_vanguard_highscore') || '0';
+        document.getElementById('menu-highscore').innerText = parseInt(hs, 10).toLocaleString();
+      };
+      updateMenuScore();
+
+      // UI Bindings
+      const hud = document.getElementById('hud');
+      const crosshair = document.getElementById('crosshair');
+
+      // Custom Crosshair Following Mouse
+      window.addEventListener('mousemove', (e) => {
+        crosshair.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+      });
+
+      // Launch Campaign
+      document.getElementById('btn-play-campaign').onclick = () => {
+        hud.classList.remove('hidden');
+        game.startNewGame('CAMPAIGN');
+      };
+
+      // Launch Endless
+      document.getElementById('btn-play-endless').onclick = () => {
+        hud.classList.remove('hidden');
+        game.startNewGame('ENDLESS');
+      };
+
+      // Launch Boss Rush
+      document.getElementById('btn-play-bossrush').onclick = () => {
+        hud.classList.remove('hidden');
+        game.startNewGame('BOSSRUSH');
+      };
+
+      // How to Play
+      document.getElementById('btn-how-to-play').onclick = () => {
+        document.getElementById('guide-modal').classList.remove('hidden');
+      };
+      document.getElementById('btn-close-guide').onclick = () => {
+        document.getElementById('guide-modal').classList.add('hidden');
+      };
+
+      // Audio Settings
+      document.getElementById('btn-audio-settings').onclick = () => {
+        document.getElementById('audio-modal').classList.remove('hidden');
+      };
+      document.getElementById('btn-close-audio').onclick = () => {
+        document.getElementById('audio-modal').classList.add('hidden');
+      };
+
+      // Audio Sliders
+      document.getElementById('sfx-slider').oninput = (e) => {
+        soundEngine.setSFXVolume(parseFloat(e.target.value));
+      };
+      document.getElementById('music-slider').oninput = (e) => {
+        soundEngine.setMusicVolume(parseFloat(e.target.value));
+      };
+      document.getElementById('mute-checkbox').onchange = (e) => {
+        soundEngine.setMuted(e.target.checked);
+      };
+
+      // Pause Actions
+      document.getElementById('btn-pause-hud').onclick = () => game.togglePause();
+      document.getElementById('btn-resume').onclick = () => game.togglePause();
+      document.getElementById('btn-restart').onclick = () => {
+        game.startNewGame(game.gameMode);
+      };
+      document.getElementById('btn-quit-menu').onclick = () => {
+        game.state = 'MENU';
+        soundEngine.stopMusic();
+        hud.classList.add('hidden');
+        game.hideAllModals();
+        document.getElementById('main-menu').classList.remove('hidden');
+        updateMenuScore();
+      };
+
+      // Game Over Actions
+      document.getElementById('btn-gameover-restart').onclick = () => {
+        game.startNewGame(game.gameMode);
+      };
+      document.getElementById('btn-gameover-menu').onclick = () => {
+        game.state = 'MENU';
+        hud.classList.add('hidden');
+        game.hideAllModals();
+        document.getElementById('main-menu').classList.remove('hidden');
+        updateMenuScore();
+      };
+
+      // Victory Actions
+      document.getElementById('btn-victory-endless').onclick = () => {
+        game.gameMode = 'ENDLESS';
+        game.state = 'PLAYING';
+        soundEngine.startMusic();
+        game.hideAllModals();
+        game.currentWave++;
+        game.startWave(game.currentWave);
+      };
+      document.getElementById('btn-victory-menu').onclick = () => {
+        game.state = 'MENU';
+        hud.classList.add('hidden');
+        game.hideAllModals();
+        document.getElementById('main-menu').classList.remove('hidden');
+        updateMenuScore();
+      };
+
+      // Weapon Slots Click
+      document.querySelectorAll('.weapon-slot[data-index]').forEach((btn) => {
+        btn.onclick = () => {
+          const idx = parseInt(btn.getAttribute('data-index'), 10);
+          game.player?.selectWeapon(idx);
+        };
+      });
+
+      // Overdrive Button Click
+      document.getElementById('btn-overdrive').onclick = () => {
+        game.player?.triggerOverdrive(game.bullets, game.enemies, game.particles);
+      };
+
+      // Mobile Touch Joystick Handling
+      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      if (isTouch) {
+        document.getElementById('mobile-controls').classList.remove('hidden');
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickKnob = document.getElementById('joystick-knob');
+        let touchId = null;
+        let startX = 0, startY = 0;
+
+        joystickZone.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          const touch = e.changedTouches[0];
+          touchId = touch.identifier;
+          const rect = joystickZone.getBoundingClientRect();
+          startX = rect.left + rect.width / 2;
+          startY = rect.top + rect.height / 2;
+          game.input.joystick.active = true;
+        });
+
+        window.addEventListener('touchmove', (e) => {
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            if (touch.identifier === touchId) {
+              const dx = touch.clientX - startX;
+              const dy = touch.clientY - startY;
+              const dist = Math.hypot(dx, dy);
+              const maxDist = 45;
+              const angle = Math.atan2(dy, dx);
+              const clampDist = Math.min(dist, maxDist);
+
+              const kx = Math.cos(angle) * clampDist;
+              const ky = Math.sin(angle) * clampDist;
+              joystickKnob.style.transform = `translate(${kx}px, ${ky}px)`;
+
+              game.input.joystick.x = kx / maxDist;
+              game.input.joystick.y = ky / maxDist;
+              break;
+            }
+          }
+        });
+
+        const resetJoystick = () => {
+          touchId = null;
+          joystickKnob.style.transform = 'translate(0px, 0px)';
+          game.input.joystick.active = false;
+          game.input.joystick.x = 0;
+          game.input.joystick.y = 0;
+        };
+
+        window.addEventListener('touchend', resetJoystick);
+        window.addEventListener('touchcancel', resetJoystick);
+
+        // Mobile Buttons
+        document.getElementById('mobile-dash-btn').ontouchstart = (e) => {
+          e.preventDefault();
+          game.player?.dash();
+        };
+        document.getElementById('mobile-nova-btn').ontouchstart = (e) => {
+          e.preventDefault();
+          game.player?.triggerOverdrive(game.bullets, game.enemies, game.particles);
+        };
+        document.getElementById('mobile-swap-btn').ontouchstart = (e) => {
+          e.preventDefault();
+          if (game.player) {
+            let next = (game.player.currentWeaponIndex + 1) % game.player.weapons.length;
+            game.player.selectWeapon(next);
+          }
+        };
+
+        // Screen tap for aiming & shooting on mobile
+        canvas.addEventListener('touchstart', (e) => {
+          const touch = e.touches[0];
+          game.input.aim.x = touch.clientX;
+          game.input.aim.y = touch.clientY;
+          game.input.mouseDown = true;
+        });
+        canvas.addEventListener('touchmove', (e) => {
+          const touch = e.touches[0];
+          game.input.aim.x = touch.clientX;
+          game.input.aim.y = touch.clientY;
+        });
+        canvas.addEventListener('touchend', () => {
+          game.input.mouseDown = false;
+        });
+      }
+    });
+  </script>
+</body>
+</html>
